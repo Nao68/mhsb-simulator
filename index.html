@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
@@ -134,6 +134,59 @@
         </aside>
       </main>
     </div>
+
+    <!-- フローティングナビ -->
+    <div id="float-nav" class="float-nav">
+      <div id="float-menu" class="float-menu" hidden>
+        <div class="float-menu-title">ジャンプ先</div>
+        <button class="float-menu-item" onclick="floatNavTo('top')">⬆ トップ</button>
+        <div class="float-menu-divider">── 装備 ──</div>
+        <button class="float-menu-item" onclick="floatNavTo('section-weapon')">🗡 武器</button>
+        <button class="float-menu-item" onclick="floatNavTo('section-head')">🪖 頭</button>
+        <button class="float-menu-item" onclick="floatNavTo('section-chest')">🥻 胴</button>
+        <button class="float-menu-item" onclick="floatNavTo('section-arms')">🧤 腕</button>
+        <button class="float-menu-item" onclick="floatNavTo('section-waist')">🎽 腰</button>
+        <button class="float-menu-item" onclick="floatNavTo('section-legs')">👢 脚</button>
+        <button class="float-menu-item" onclick="floatNavTo('section-charm')">💎 護石</button>
+        <div class="float-menu-divider">── まとめ ──</div>
+        <button class="float-menu-item" onclick="floatNavTo('skill-summary')">📊 合計スキル</button>
+        <button class="float-menu-item" onclick="floatNavTo('damage-form')">💥 ダメージ計算</button>
+      </div>
+      <button id="float-toggle" class="float-toggle" onclick="toggleFloatNav()" aria-label="ナビゲーション">
+        <span id="float-toggle-icon">☰</span>
+      </button>
+    </div>
+
+    <script>
+      function toggleFloatNav() {
+        const menu = document.getElementById('float-menu');
+        const icon = document.getElementById('float-toggle-icon');
+        const isOpen = !menu.hidden;
+        menu.hidden = isOpen;
+        icon.textContent = isOpen ? '☰' : '✕';
+      }
+
+      function floatNavTo(id) {
+        const el = id === 'top'
+          ? document.body
+          : document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        // メニューを閉じる
+        document.getElementById('float-menu').hidden = true;
+        document.getElementById('float-toggle-icon').textContent = '☰';
+      }
+
+      // メニュー外タップで閉じる
+      document.addEventListener('click', function(e) {
+        const nav = document.getElementById('float-nav');
+        if (!nav.contains(e.target)) {
+          document.getElementById('float-menu').hidden = true;
+          document.getElementById('float-toggle-icon').textContent = '☰';
+        }
+      });
+    </script>
 
     <script src="./data.js"></script>
     <script src="./app.js"></script>
