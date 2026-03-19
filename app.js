@@ -1,4 +1,4 @@
-﻿(function initApp() {
+(function initApp() {
   const {
     pieces,
     decorations,
@@ -750,7 +750,7 @@
           .join("");
 
         return `
-          <article class="piece-card">
+          <article class="piece-card" id="section-${key}">
             <div class="piece-header">
               <div class="piece-title">${label}</div>
               <div class="piece-type">${key === "weapon" ? piece?.weaponType ?? "武器" : "防具"}</div>
@@ -1493,34 +1493,3 @@
   renderPresetControls();
   renderAll();
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
