@@ -1,0 +1,142 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>サンブレイク装備・ダメージシミュレーター</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Monster Hunter Rise: Sunbreak</p>
+          <h1>装備シミュレーター / ダメージシミュレーター</h1>
+          <p class="hero-copy">
+            武器は全武器種のレア10最終強化、防具はマスターランクのレア10装備を中心に選択できます。
+          </p>
+        </div>
+        <div class="hero-note">
+          <details open>
+            <summary style="cursor:pointer;font-weight:700;color:var(--accent);list-style:none;padding:2px 0;">▶ 参照元</summary>
+            <ul>
+              <li><a href="https://gamewith.jp/mhrize/article/show/348248" target="_blank" rel="noreferrer">GameWith 防具一覧</a></li>
+              <li><a href="https://gamewith.jp/mhrize/article/show/230751" target="_blank" rel="noreferrer">GameWith 武器一覧</a></li>
+              <li><a href="https://gamewith.jp/mhrize/article/show/265040" target="_blank" rel="noreferrer">GameWith スキル一覧</a></li>
+              <li><a href="https://gamewith.jp/mhrize/article/show/266756" target="_blank" rel="noreferrer">GameWith 装飾品一覧</a></li>
+              <li><a href="https://game8.jp/mhrise/470336" target="_blank" rel="noreferrer">Game8 傀異錬成(武器)</a></li>
+              <li><a href="https://gamewith.jp/mhrize/article/show/352670" target="_blank" rel="noreferrer">GameWith 傀異錬成(武器)</a></li>
+              <li><a href="https://gamewith.jp/mhrize/article/show/379459" target="_blank" rel="noreferrer">GameWith 傀異錬成(防具)</a></li>
+              <li><a href="https://kuroyonhon.com/mhrisesb/d/dame.php" target="_blank" rel="noreferrer">黒曜本 ダメージシミュ</a></li>
+            </ul>
+          </details>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel">
+          <div class="section-heading">
+            <h2>装備選択</h2>
+            <p>各部位を選ぶとスロットとスキルが表示されます。</p>
+          </div>
+          <div id="preset-panel" class="preset-panel">
+            <div class="preset-title">Preset</div>
+            <div class="preset-grid">
+              <label>
+                プリセットリスト
+                <select id="preset-select" data-expandable-select="true"></select>
+              </label>
+              <label>
+                名前
+                <input id="preset-name" type="text" placeholder="Preset name" />
+              </label>
+              <div class="preset-actions">
+                <button type="button" id="preset-save">保存</button>
+                <button type="button" id="preset-update">Update</button>
+                <button type="button" id="preset-apply">適用</button>
+                <button type="button" id="preset-delete">削除</button>
+              </div>
+            </div>
+            <div class="meta-text">ブラウザのローカルストレージに保存されました。</div>
+          </div>          <div id="equipment-grid" class="equipment-grid"></div>
+        </section>
+
+        <aside class="summary-column">
+          <section class="panel">
+            <div class="section-heading">
+              <h2>合計スキル</h2>
+              <p>装備と装飾品のスキルを自動集計します。</p>
+            </div>
+            <div id="skill-summary" class="skill-summary"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <h2>ダメージ計算</h2>
+              <p>モーション値と肉質を入力して概算します。</p>
+            </div>
+            <form id="damage-form" class="damage-form">
+              <label>
+                モーション値
+                <input type="number" name="motionValue" min="1" max="500" value="48" />
+              </label>
+              <label>
+                ヒット数
+                <input type="number" name="hits" min="1" max="20" value="1" />
+              </label>
+              <label>
+                物理肉質
+                <input type="number" name="hitzone" min="1" max="100" value="45" />
+              </label>
+              <label>
+                属性肉質
+                <input type="number" name="elementHitzone" min="0" max="100" value="20" />
+              </label>
+              <label>
+                切れ味 / 弾強化
+                <select name="sharpness">
+                  <option value="purple">紫</option>
+                  <option value="white" selected>白</option>
+                  <option value="blue">青</option>
+                  <option value="green">緑</option>
+                </select>
+              </label>
+              <label>
+                敵が怒り状態
+                <select name="monsterState">
+                  <option value="normal" selected>通常</option>
+                  <option value="enraged">怒り</option>
+                </select>
+              </label>
+              <label>
+                連撃を反映
+                <select name="burstState">
+                  <option value="off" selected>しない</option>
+                  <option value="on">する</option>
+                </select>
+              </label>
+              <label>
+                弱点特効条件を満たす
+                <select name="weakspot">
+                  <option value="auto" selected>肉質45以上なら自動</option>
+                  <option value="force">常に反映</option>
+                  <option value="off">反映しない</option>
+                </select>
+              </label>
+            </form>
+
+            <div id="damage-output" class="damage-output"></div>
+            <div class="supported-skills">
+              <p>計算対応スキル</p>
+              <p>攻撃 / 見切り / 超会心 / 弱点特効 / 挑戦者 / 渾身 / 力の解放 / 連撃 / 属性攻撃強化</p>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
+
