@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "mhrice.json"
+BACKUP_SOURCE = ROOT / "mhrice.full.backup.json"
 TARGET = ROOT / "data.js"
 
 WEAPON_KEY_MAP = {
@@ -155,22 +156,6 @@ BULLET_TYPE_NOTES = {
     "MovingShotReloadSingleAuto": "移動射撃/装填/単発自動装填",
 }
 
-SKILL_CAPS = {
-    "攻撃": 7,
-    "見切り": 7,
-    "弱点特効": 3,
-    "超会心": 3,
-    "挑戦者": 5,
-    "渾身": 3,
-    "力の解放": 5,
-    "連撃": 3,
-    "火属性攻撃強化": 5,
-    "水属性攻撃強化": 5,
-    "雷属性攻撃強化": 5,
-    "氷属性攻撃強化": 5,
-    "龍属性攻撃強化": 5,
-}
-
 STATIC_DATA = {
     "slots": [
         {"key": "weapon", "label": "武器"},
@@ -186,7 +171,6 @@ STATIC_DATA = {
         "blue": {"label": "青", "raw": 1.2, "element": 1.0625},
         "green": {"label": "緑", "raw": 1.05, "element": 1.0},
     },
-    "skillCaps": SKILL_CAPS,
     "weaponAugmentBudget": {
         "10": 10,
     },
@@ -251,6 +235,28 @@ def build_skill_names(data):
             skill_names[("MrSkill", skill_id)] = skill_name
 
     return skill_names
+
+
+def load_cap_source(primary_data):
+    if isinstance(primary_data, dict) and "equip_skill" in primary_data:
+        return primary_data
+    if BACKUP_SOURCE.exists():
+        return json.loads(BACKUP_SOURCE.read_text(encoding="utf-8"))
+    return primary_data
+
+
+def build_skill_caps(cap_source, skill_names):
+    caps = {}
+    for entry in cap_source.get("equip_skill", {}).get("param", []):
+        skill_ref = entry.get("id")
+        if not isinstance(skill_ref, dict):
+            continue
+        kind, skill_id = next(iter(skill_ref.items()))
+        skill_name = skill_names.get((kind, skill_id))
+        if not skill_name:
+            continue
+        caps[skill_name] = int(entry.get("max_level", 0)) + 1
+    return caps
 
 
 def build_weapons(data):
@@ -606,7 +612,8 @@ def build_weapon_augment_tables(data):
 
 def main():
     data = json.loads(SOURCE.read_text(encoding="utf-8"))
-    skill_names = build_skill_names(data)
+    cap_source = load_cap_source(data)
+    skill_names = build_skill_names(cap_source)
     all_skills = sorted(set(skill_names.values()))
 
     pieces = {"weapon": build_weapons(data)}
@@ -618,6 +625,7 @@ def main():
         "rampageDecorations": build_rampage_decorations(data),
         "weaponAugmentTables": build_weapon_augment_tables(data),
         "allSkills": all_skills,
+        "skillCaps": build_skill_caps(cap_source, skill_names),
         **STATIC_DATA,
     }
 

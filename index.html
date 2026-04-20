@@ -58,7 +58,8 @@
               </div>
             </div>
             <div class="meta-text">ブラウザのローカルストレージに保存されました。</div>
-          </div>          <div id="equipment-grid" class="equipment-grid"></div>
+          </div>
+          <div id="equipment-grid" class="equipment-grid"></div>
         </section>
 
         <aside class="summary-column">
@@ -135,7 +136,7 @@
       </main>
     </div>
 
-    <!-- フローティングナビ -->
+    <!-- フローティングナビ（スマホのみ） -->
     <div id="float-nav" class="float-nav">
       <div id="float-menu" class="float-menu" hidden>
         <div class="float-menu-title">ジャンプ先</div>
@@ -165,20 +166,12 @@
         menu.hidden = isOpen;
         icon.textContent = isOpen ? '☰' : '✕';
       }
-
       function floatNavTo(id) {
-        const el = id === 'top'
-          ? document.body
-          : document.getElementById(id);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        // メニューを閉じる
+        const el = id === 'top' ? document.body : document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         document.getElementById('float-menu').hidden = true;
         document.getElementById('float-toggle-icon').textContent = '☰';
       }
-
-      // メニュー外タップで閉じる
       document.addEventListener('click', function(e) {
         const nav = document.getElementById('float-nav');
         if (!nav.contains(e.target)) {
@@ -192,4 +185,3 @@
     <script src="./app.js"></script>
   </body>
 </html>
-

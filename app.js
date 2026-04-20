@@ -1,4 +1,4 @@
-(function initApp() {
+﻿(function initApp() {
   const {
     pieces,
     decorations,
@@ -24,6 +24,7 @@
 
   const PRESET_STORAGE_KEY = "mhsb_presets_v1";
   const LAST_STATE_KEY = "mhsb_last_state_v1";
+  const CHARM_STORAGE_KEY = "mhsb_charms_v1";
 
   const nonePiece = { id: "none", name: "なし", slots: [], skills: {} };
   const armorSlotKeys = ["head", "chest", "arms", "waist", "legs"];
@@ -55,6 +56,9 @@
     armorAugment: {},
     presets: [],
     activePresetId: "",
+    charms: [],
+    activeCharmId: "",
+    charmDraftName: "",
   };
 
   const preferredWeaponOrder = [
@@ -99,6 +103,112 @@
     return allSkills
       .filter((skillName) => skillName && !(excludedSet && excludedSet.has(skillName)))
       .sort((a, b) => a.localeCompare(b, "ja"));
+  }
+
+
+  function rebuildCharmPieces() {
+    pieces.charm = [
+      { ...nonePiece, id: "charm-none", name: "なし" },
+      ...state.charms.map((charm) => ({ ...charm, isSavedCharm: true })),
+    ];
+  }
+
+  function buildCharmFromAugment() {
+    const augment = getArmorAugmentState("charm");
+    const skills = {};
+    if (augment.addSkillName) {
+      skills[augment.addSkillName] = Number(augment.addSkillLevel || 0);
+    }
+    if (augment.addSkillName2) {
+      skills[augment.addSkillName2] = (skills[augment.addSkillName2] ?? 0) + Number(augment.addSkillLevel2 || 0);
+    }
+    return {
+      id: "charm-none",
+      name: state.charmDraftName.trim() || "なし",
+      slots: (augment.extraSlots || []).map((value) => Number(value || 0)).filter((value) => value > 0),
+      skills,
+    };
+  }
+
+  function applyCharmToEditor(charm) {
+    const augment = getArmorAugmentState("charm");
+    const entries = Object.entries(charm?.skills || {}).slice(0, 2);
+    augment.extraSlots = Array.from({ length: 3 }, (_, index) => Number(charm?.slots?.[index] || 0));
+    augment.addSkillName = entries[0]?.[0] ?? "";
+    augment.addSkillLevel = Number(entries[0]?.[1] ?? 1);
+    augment.addSkillName2 = entries[1]?.[0] ?? "";
+    augment.addSkillLevel2 = Number(entries[1]?.[1] ?? 1);
+    augment.minusSkillName = "";
+    augment.minusSkillLevel = 1;
+    state.charmDraftName = charm?.name && charm.name !== "なし" ? charm.name : "";
+  }
+
+  function loadCharms() {
+    try {
+      const raw = localStorage.getItem(CHARM_STORAGE_KEY);
+      if (!raw) {
+        rebuildCharmPieces();
+        return;
+      }
+      const payload = JSON.parse(raw);
+      if (Array.isArray(payload)) {
+        state.charms = payload;
+      } else if (payload && Array.isArray(payload.charms)) {
+        state.charms = payload.charms;
+        state.activeCharmId = payload.activeCharmId ?? "";
+      }
+    } catch (error) {
+      state.charms = [];
+      state.activeCharmId = "";
+    }
+    rebuildCharmPieces();
+  }
+
+  function persistCharms() {
+    localStorage.setItem(
+      CHARM_STORAGE_KEY,
+      JSON.stringify({ charms: state.charms, activeCharmId: state.activeCharmId })
+    );
+  }
+
+  function getDecorationDisplayName(decoration) {
+    if (!decoration || decoration.id === "none") {
+      return "なし";
+    }
+    const entries = Object.entries(decoration.skills || {});
+    const baseLabel = entries.length
+      ? entries
+          .sort((a, b) => a[0].localeCompare(b[0], "ja"))
+          .map(([skillName, level]) => `${skillName}Lv${level}`)
+          .join(" / ")
+      : decoration.name;
+    return decoration.slotSize ? `${baseLabel}【${decoration.slotSize}】` : baseLabel;
+  }
+
+  function formatSlotSummary(slotsList) {
+    const slots = (slotsList || []).filter((value) => value > 0);
+    return slots.length ? `S${slots.join("-")}` : "S0";
+  }
+
+  function getDecorationSkillsForSlot(slotKey, piece) {
+    if (!piece) {
+      return {};
+    }
+    ensureDecorationState(slotKey, piece);
+    const skills = {};
+    (state.decorations[slotKey] || []).forEach((decorationId) => {
+      const decoration = decorations.find((entry) => entry.id === decorationId);
+      if (decoration) {
+        addSkills(skills, decoration.skills);
+      }
+    });
+    if (slotKey === "weapon") {
+      const rampageDecoration = getRampageDecorationOptions(piece).find((entry) => entry.id === state.rampageDecoration);
+      if (rampageDecoration) {
+        addSkills(skills, rampageDecoration.skills);
+      }
+    }
+    return skills;
   }
 
   function getVisibleWeapons() {
@@ -357,6 +467,17 @@
       return null;
     }
 
+    if (isCharm) {
+      if (piece.id === "charm-none") {
+        return buildCharmFromAugment();
+      }
+      return {
+        ...piece,
+        slots: [...(piece.slots || [])].sort((a, b) => b - a),
+        skills: { ...(piece.skills || {}) },
+      };
+    }
+
     const augment = getArmorAugmentState(slotKey);
     const skills = { ...piece.skills };
     const slots = Array.from({ length: 3 }, (_, index) => {
@@ -371,7 +492,7 @@
     if (augment.addSkillName2) {
       skills[augment.addSkillName2] = (skills[augment.addSkillName2] ?? 0) + Number(augment.addSkillLevel2 || 0);
     }
-    if (!isCharm && augment.minusSkillName) {
+    if (augment.minusSkillName) {
       skills[augment.minusSkillName] = (skills[augment.minusSkillName] ?? 0) - Number(augment.minusSkillLevel || 0);
       if (skills[augment.minusSkillName] <= 0) {
         delete skills[augment.minusSkillName];
@@ -588,6 +709,8 @@
     const basePiece = getPiece(slotKey);
     const isCharm = slotKey === "charm";
     const optionsSource = isCharm ? charmSkillOptions : armorSkillOptions;
+    const isCharmDraft = !isCharm || state.selected.charm === "charm-none";
+    const charmEditorDisabled = isCharm && !isCharmDraft;
     const skillOptionsHtml = [
       '<option value="">なし</option>',
       ...optionsSource.map(
@@ -611,6 +734,7 @@
             `<option value="${skillName}" ${augment.minusSkillName === skillName ? "selected" : ""}>${skillName}</option>`
         ),
     ].join("");
+    const disabledAttr = charmEditorDisabled ? 'disabled' : '';
     const minusBlock = isCharm
       ? ""
       : `
@@ -628,57 +752,77 @@
           </label>
         `;
     const slotControls = Array.from({ length: 3 }, (_, index) => {
-      const baseLevel = basePiece?.slots?.[index] ?? 0;
+      const baseLevel = isCharm ? 0 : basePiece?.slots?.[index] ?? 0;
       const currentBonus = Number(augment.extraSlots?.[index] ?? 0);
       return `
         <label class="decoration-label">
           ${isCharm ? "護石スロット" : "追加スロット"}${index + 1}
-          <select data-armor-slot="${slotKey}" data-armor-slot-index="${index}">
+          <select data-armor-slot="${slotKey}" data-armor-slot-index="${index}" ${disabledAttr}>
             ${[0, 1, 2, 3, 4]
               .map((level) => {
                 const totalLevel = baseLevel + level;
-                const disabled = level > 0 && totalLevel > 4;
+                const disabled = !isCharm && level > 0 && totalLevel > 4;
                 const selected = level === currentBonus ? "selected" : "";
-                return `<option value="${level}" ${selected} ${disabled ? "disabled" : ""}>${level ? `+${level} → Lv${Math.min(4, totalLevel)}` : "なし"}</option>`;
+                const label = isCharm
+                  ? level ? `Lv${level}` : "なし"
+                  : level ? `+${level} → Lv${Math.min(4, totalLevel)}` : "なし";
+                return `<option value="${level}" ${selected} ${disabled ? "disabled" : ""}>${label}</option>`;
               })
               .join("")}
           </select>
         </label>
       `;
     }).join("");
+    const charmControls = isCharm
+      ? `
+        <div class="charm-storage-panel">
+          <label class="decoration-label">
+            護石名
+            <input type="text" value="${state.charmDraftName}" data-charm-name-input="true" placeholder="保存する護石名" />
+          </label>
+          <div class="preset-actions charm-actions">
+            <button type="button" data-charm-action="save">保存</button>
+            <button type="button" data-charm-action="update" ${state.activeCharmId ? "" : "disabled"}>更新</button>
+            <button type="button" data-charm-action="delete" ${state.activeCharmId ? "" : "disabled"}>削除</button>
+          </div>
+          <div class="meta-text">${state.selected.charm === "charm-none" ? "なしの状態でスキルやスロットを設定し、名前を付けて保存できます。" : "保存済み護石を選択中です。編集したい場合は「なし」を選んでください。"}</div>
+        </div>
+      `
+      : "";
 
     return `
       <div class="augment-panel">
         <div class="piece-summary">${isCharm ? "護石の設定" : "防具の傀異錬成"}</div>
+        ${charmControls}
         <div class="armor-augment-grid">
           ${slotControls}
           <label class="decoration-label">
             追加スキル
-            <select data-armor-skill-name="${slotKey}" data-expandable-select="true">
+            <select data-armor-skill-name="${slotKey}" data-expandable-select="true" ${disabledAttr}>
               ${skillOptionsHtml}
             </select>
           </label>
           <label class="decoration-label">
             追加Lv
-            <select data-armor-skill-level="${slotKey}">
+            <select data-armor-skill-level="${slotKey}" ${disabledAttr}>
               ${[1, 2, 3].map((level) => `<option value="${level}" ${level === augment.addSkillLevel ? "selected" : ""}>Lv${level}</option>`).join("")}
             </select>
           </label>
           <label class="decoration-label">
             追加スキル2
-            <select data-armor-skill-name2="${slotKey}" data-expandable-select="true">
+            <select data-armor-skill-name2="${slotKey}" data-expandable-select="true" ${disabledAttr}>
               ${skillOptionsHtml2}
             </select>
           </label>
           <label class="decoration-label">
             追加Lv2
-            <select data-armor-skill-level2="${slotKey}">
+            <select data-armor-skill-level2="${slotKey}" ${disabledAttr}>
               ${[1, 2, 3].map((level) => `<option value="${level}" ${level === augment.addSkillLevel2 ? "selected" : ""}>Lv${level}</option>`).join("")}
             </select>
           </label>
           ${minusBlock}
         </div>
-        <div class="meta-text">${isCharm ? "護石は結果入力型です。各スロット1〜3に加算して反映します。" : "防具の傀異錬成は結果入力型です。追加スロットは既存のスロット1〜3に加算して反映します。"}</div>
+        <div class="meta-text">${isCharm ? "護石は保存・呼び出し対応です。スロットとスキル2枠を結果入力で反映します。" : "防具の傀異錬成は結果入力型です。追加スロットは既存のスロット1〜3に加算して反映します。"}</div>
       </div>
     `;
   }
@@ -691,6 +835,7 @@
           ensureDecorationState(key, piece);
         }
 
+        const decorationSkills = getDecorationSkillsForSlot(key, piece);
         const sourcePieces = key === "weapon" ? getVisibleWeapons() : pieces[key];
         const options = sourcePieces
           .map((entry) => {
@@ -734,7 +879,7 @@
             const decoOptions = getDecorationOptions(slotSize)
               .map((entry) => {
                 const selected = state.decorations[key][index] === entry.id ? "selected" : "";
-                return `<option value="${entry.id}" ${selected}>${entry.name}</option>`;
+                return `<option value="${entry.id}" ${selected}>${getDecorationDisplayName(entry)}</option>`;
               })
               .join("");
 
@@ -786,7 +931,16 @@
               </div>
               <div>
                 <div class="piece-summary">付与スキル</div>
-                <div class="skill-row">${formatSkills(piece?.skills)}</div>
+                <div class="skill-groups">
+                  <div class="skill-group-block">
+                    <div class="skill-group-title">装備</div>
+                    <div class="skill-row">${formatSkills(piece?.skills)}</div>
+                  </div>
+                  <div class="skill-group-block">
+                    <div class="skill-group-title">装飾品</div>
+                    <div class="skill-row">${formatSkills(decorationSkills)}</div>
+                  </div>
+                </div>
               </div>
               <div>
                 <div class="piece-summary">装飾品</div>
@@ -818,17 +972,27 @@
     }
 
     summaryRoot.innerHTML = entries
-      .map(
-        ([skillName, level]) => {
-          const isOver = overcap && overcap[skillName] > 0;
-          return `
+      .map(([skillName, level]) => {
+        const cap = Number(skillCaps[skillName] || 0);
+        const overflow = Number(overcap?.[skillName] || 0);
+        const isOver = overflow > 0;
+        const isExact = !isOver && cap > 0 && level === cap;
+        const levelClass = isOver ? "overcap" : isExact ? "cap-reached" : "";
+        const inlineStyle = isOver ? ' style="color:#a13b26;"' : isExact ? ' style="color:#2d7a46;"' : "";
+        const titleText = isOver
+          ? ` title="上限Lv${cap}を${overflow}超過"`
+          : isExact
+            ? ` title="上限Lv${cap}ちょうど"`
+            : cap > 0
+              ? ` title="上限Lv${cap}"`
+              : "";
+        return `
           <div class="summary-item">
             <span>${skillName}</span>
-            <strong class="${isOver ? "overcap" : ""}" ${isOver ? "style=\"color:#a13b26\"" : ""}>Lv${level}</strong>
+            <strong class="${levelClass}"${inlineStyle}${titleText}>Lv${level}</strong>
           </div>
         `;
-        }
-      )
+      })
       .join("");
   }
 
@@ -913,7 +1077,7 @@
     `;
   }
 
-    function serializeState() {
+  function serializeState() {
     return JSON.parse(
       JSON.stringify({
         selectedWeaponType: state.selectedWeaponType,
@@ -922,11 +1086,15 @@
         weaponAugment: state.weaponAugment,
         armorAugment: state.armorAugment,
         rampageDecoration: state.rampageDecoration,
+        charmDraftName: state.charmDraftName,
+        activeCharmId: state.activeCharmId,
       })
     );
   }
 
   function normalizeSelection() {
+    rebuildCharmPieces();
+
     if (!weaponTypes.includes(state.selectedWeaponType)) {
       state.selectedWeaponType = weaponTypes[0] ?? "";
     }
@@ -965,6 +1133,8 @@
     state.weaponAugment = snapshot.weaponAugment ?? {};
     state.armorAugment = snapshot.armorAugment ?? {};
     state.rampageDecoration = snapshot.rampageDecoration ?? "none";
+    state.charmDraftName = snapshot.charmDraftName ?? state.charmDraftName;
+    state.activeCharmId = snapshot.activeCharmId ?? state.activeCharmId;
     normalizeSelection();
   }
 
@@ -1051,6 +1221,7 @@
     if (presetApplyButton) presetApplyButton.disabled = !presetSelect.value;
   }
   function renderAll() {
+    rebuildCharmPieces();
     const { totals, overcap } = aggregateSkills();
     renderEquipment(totals);
     renderSummary(totals, overcap);
@@ -1097,7 +1268,17 @@
       if (pieceSlot === "weapon") {
         state.rampageDecoration = "none";
       }
-  renderAll();
+      if (pieceSlot === "charm") {
+        const selectedCharm = pieces.charm.find((entry) => entry.id === state.selected.charm);
+        if (selectedCharm && selectedCharm.id !== "charm-none") {
+          applyCharmToEditor(selectedCharm);
+          state.activeCharmId = selectedCharm.id;
+        } else {
+          applyCharmToEditor({ name: "", slots: [], skills: {} });
+          state.activeCharmId = "";
+        }
+      }
+      renderAll();
       return;
     }
 
@@ -1150,7 +1331,72 @@
     }
   });
 
+  equipmentRoot.addEventListener("input", (event) => {
+    if (event.target.dataset.charmNameInput) {
+      state.charmDraftName = event.target.value;
+      rebuildCharmPieces();
+      return;
+    }
+  });
+
   equipmentRoot.addEventListener("click", (event) => {
+    const charmAction = event.target.dataset.charmAction;
+    if (charmAction) {
+      const activeCharm = state.charms.find((charm) => charm.id === state.activeCharmId);
+      if (charmAction === "save") {
+        const draft = buildCharmFromAugment();
+        const name = state.charmDraftName.trim();
+        if (!name) {
+          return;
+        }
+        const existing = state.charms.find((charm) => charm.name === name);
+        const savedCharm = {
+          id: existing?.id ?? `charm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+          name,
+          slots: [...draft.slots],
+          skills: { ...draft.skills },
+          updatedAt: Date.now(),
+        };
+        if (existing) {
+          Object.assign(existing, savedCharm);
+        } else {
+          state.charms.push(savedCharm);
+        }
+        state.activeCharmId = savedCharm.id;
+        state.selected.charm = savedCharm.id;
+        persistCharms();
+        renderAll();
+        return;
+      }
+      if (charmAction === "update") {
+        if (!activeCharm) {
+          return;
+        }
+        const draft = buildCharmFromAugment();
+        activeCharm.name = state.charmDraftName.trim() || activeCharm.name;
+        activeCharm.slots = [...draft.slots];
+        activeCharm.skills = { ...draft.skills };
+        activeCharm.updatedAt = Date.now();
+        state.selected.charm = activeCharm.id;
+        persistCharms();
+        renderAll();
+        return;
+      }
+      if (charmAction === "delete") {
+        if (!activeCharm) {
+          return;
+        }
+        state.charms = state.charms.filter((charm) => charm.id !== activeCharm.id);
+        if (state.selected.charm === activeCharm.id) {
+          state.selected.charm = "charm-none";
+        }
+        state.activeCharmId = "";
+        persistCharms();
+        renderAll();
+        return;
+      }
+    }
+
     const key = event.target.dataset.weaponAugmentKey;
     const level = event.target.dataset.weaponAugmentLevel;
     if (!key || level === undefined) {
@@ -1301,10 +1547,20 @@
   }
 
   function formatArmorOptionLabel(piece) {
-    const skills = Object.entries(piece.skills || {})
+    if (piece.id === "charm-none") {
+      return piece.name;
+    }
+    const effectivePiece = piece;
+    const skills = Object.entries(effectivePiece.skills || {})
+      .sort((a, b) => a[0].localeCompare(b[0], "ja"))
       .map(([skillName, level]) => `${skillName}Lv${level}`)
       .join(" / ");
-    return skills ? `${piece.name}（${skills}）` : piece.name;
+    const slotText = formatSlotSummary(effectivePiece.slots || []);
+    if (piece.id.startsWith("charm-")) {
+      const bits = [skills, slotText].filter(Boolean);
+      return bits.length ? `${effectivePiece.name} (${bits.join(" / ")})` : effectivePiece.name;
+    }
+    return skills ? `${piece.name} (${skills})` : piece.name;
   }
 
   function formatWeaponOptionLabel(piece) {
@@ -1313,8 +1569,7 @@
   }
 
   function formatRampageDecorationOption(piece) {
-    const skills = Object.keys(piece.skills || {}).join(" / ");
-    return skills ? `${piece.name}（${skills}）` : piece.name;
+    return getDecorationDisplayName(piece);
   }
 
   function getWeaponMarker(piece) {
@@ -1485,6 +1740,7 @@
     return table[level] ?? table[0];
   }
 
+        loadCharms();
         loadPresets();
   const lastState = loadLastState();
   if (lastState) {
@@ -1493,3 +1749,34 @@
   renderPresetControls();
   renderAll();
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
