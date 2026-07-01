@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>未設定データ入力ツール</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./missing-data.css" />
+  </head>
+  <body>
+    <div class="app-shell missing-shell">
+      <header class="hero missing-hero">
+        <div>
+          <p class="eyebrow">Monster Hunter Rise: Sunbreak</p>
+          <h1>未設定データ入力ツール</h1>
+          <p class="hero-copy">
+            Wiki から取りづらい値や、後で手動補完したい情報を武器ごとに保存します。
+            現在は「武器傀異錬成」と「ボウガン弾設定」に対応しています。
+          </p>
+          <div class="missing-links">
+            <a class="link-chip" href="./index.html">本体シミュレーターへ戻る</a>
+          </div>
+        </div>
+        <div class="hero-note">
+          <p>保存方式</p>
+          <ul>
+            <li>この画面の「保存」は下書き保存です</li>
+            <li>本体へ反映する時だけ「本体保存」を押します</li>
+            <li>本体側では武器欄の「武器の傀異錬成」「ボウガン詳細」に反映されます</li>
+            <li>使わない項目は自動でまとめて折りたたまれます（開けば手動で追加できます）</li>
+            <li>JSON エクスポート / インポートで共有できます</li>
+          </ul>
+        </div>
+      </header>
+
+      <main class="missing-layout">
+        <section class="panel missing-main-panel">
+          <div class="section-heading">
+            <h2>入力対象</h2>
+            <p>対象武器を選んで、必要な値だけ上書き保存します。</p>
+          </div>
+
+          <div class="missing-toolbar">
+            <div class="tab-row" id="tab-row">
+              <button type="button" class="tab-button is-active" data-tab="augment">武器傀異錬成</button>
+              <button type="button" class="tab-button" data-tab="bowgun">ボウガン弾設定</button>
+            </div>
+            <div class="stat-row" id="storage-stats"></div>
+            <div class="io-actions">
+              <button type="button" id="apply-to-main" class="primary-button">本体保存</button>
+              <button type="button" id="clear-applied-data">本体反映を削除</button>
+            </div>
+            <div class="meta-text" id="apply-status">まだ本体に反映されていません。</div>
+          </div>
+
+          <section id="augment-panel" class="missing-panel-section"></section>
+          <section id="bowgun-panel" class="missing-panel-section is-hidden"></section>
+        </section>
+
+        <aside class="summary-column missing-side-panel">
+          <section class="panel">
+            <div class="section-heading">
+              <h2>保存データ</h2>
+              <p>ここで扱う JSON は下書き用です。本体反映は上の「本体保存」で行います。</p>
+            </div>
+            <div class="io-actions">
+              <button type="button" id="export-json">JSONを書き出し</button>
+              <label class="file-label">
+                <span>JSONを読み込み</span>
+                <input type="file" id="import-json-file" accept="application/json" />
+              </label>
+            </div>
+            <label>
+              JSONプレビュー
+              <textarea id="json-preview" class="json-preview" spellcheck="false"></textarea>
+            </label>
+            <div class="io-actions">
+              <button type="button" id="import-json-text">テキストから反映</button>
+              <button type="button" id="clear-all-data" class="danger-button">下書きを全削除</button>
+            </div>
+            <div class="meta-text" id="save-status">未保存データはありません。</div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <h2>保存済み一覧</h2>
+              <p>どの武器に手動補完を入れたか確認できます。</p>
+            </div>
+            <div id="saved-summary" class="saved-summary"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="./data.js"></script>
+    <script src="./missing-data.js"></script>
+  </body>
+</html>
